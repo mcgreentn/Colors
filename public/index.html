@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Colors</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+        <style>
+            body 
+            {
+                font-family: 'Arvo', serif;
+                text-align: center; 
+                background-color: gray;
+            }
+
+            .ui-content
+            {
+                text-align: center; 
+                background-color: gray;
+            }
+
+            #gameTable {
+                margin-top:-10px;
+                float: left;
+                border: 1px solid gray;
+                background-color: lightgrey;
+            }
+
+            #info
+            {
+                font-family: 'Arvo', serif;
+                text-align: center;
+                color: white;
+            }
+
+            #gameTable td {
+                background-color: blue;
+                height: 5em;
+                width: 8em;
+            }
+
+            #highscore_table, td, tr
+            {
+                border: 1px solid black;
+            }
+
+            .leaders
+            {
+                float: left;
+                background-color: white;
+                margin-left: 2px;
+                font-size: 1em;
+            }
+
+            .block
+            {
+                padding: 4px;
+            }
+
+            #score
+            {
+                margin-top: -5px;
+            }
+            #time
+            {
+                margin-top: -10px;
+            }
+        </style>
+
+        <script src="https://code.jquery.com/jquery-1.10.2.js"></script>
+        <!-- Include jQuery Mobile stylesheets -->
+        <link rel="stylesheet" href="http://code.jquery.com/mobile/1.4.5/jquery.mobile-1.4.5.min.css">  
+        
+        <!-- Include the jQuery Mobile library -->
+        <script src="http://code.jquery.com/mobile/1.4.5/jquery.mobile-1.4.5.min.js"></script>
+        <script src="https://cdn.firebase.com/js/client/2.4.2/firebase.js"></script>   
+        <link href='https://fonts.googleapis.com/css?family=Arvo' rel='stylesheet' type='text/css'>
+    </head>
+    <body>
+        <script>
+            // how many selected
+            var count = 0;
+            var gameBoard = new Array();
+            var selected = new Array();
+            var score = 0;
+            var timerRunning;
+
+            // Leaderboard size
+            var LEADERBOARD_SIZE = 5;
+
+            // Firebase reference
+            var scoreListRef = new Firebase('https://cse264project.firebaseio.com//scorelist');
+            
+            // Keep a mapping of firebase locations to HTML elements, so we can move / remove elements as necessary.
+            var htmlForPath = {};
+            // when doc is ready, preload
+            $(document).ready(function()
+            {
+                preload();
+            });
+
+            // add click listeners and random colors to all blocks
+            function preload()
+            {
+
+                score = 0;
+                for(var i = 1; i < 17; i++)
+                {
+                    colorMe(i);
+                } 
+                // click listener
+                $(".block").click(function()
+                {
+                    if($(this).css("border") == "4px solid rgb(255, 255, 255)")
+                    {
+                        count--;
+                        var index = selected.indexOf($(this).attr('id').substring(6));
+                        console.log(index);
+                        if(index > -1)
+                        {
+                            selected.splice(index, 1);
+                        }
+                        $(this).css({
+                            border: '',
+                            padding: '4px'
+                        });
+                    }
+                    else
+                    {
+                        selected[count] = $(this).attr('id').substring(6);
+                        $(this).css({
+                            border: '4px solid rgb(255, 255, 255)',
+                            padding: '0px'
+                        });
+                        count++;
+
+                        // if count = 3, then check for color matching
+                        if(count == 3)
+                        {
+                            colorCheck();
+                        }                            
+                    }
+                    console.log(selected)                
+                });
+                    var minutes = 30,
+                        display = document.querySelector('#time');
+                    startTimer(minutes, display);
+            }
+
+            function colorCheck()
+            {
+                console.log(": " + gameBoard[selected[0]] + " : " + gameBoard[selected[1]] + " : " + gameBoard[selected[2]]);                
+                if (gameBoard[selected[0]] == gameBoard[selected[1]] && gameBoard[selected[1]] == gameBoard[selected[2]])
+                {
+                    console.log("color check successful");
+                    score = score + 100;
+                    $("#score").html("Score: " + score);
+                    for(var i = 0; i < 3; i++)
+                    {
+                        colorMe(selected[i]);
+                    }
+                }
+                selected = new Array();
+                count = 0;
+                for(var i = 1; i < 17; i++)
+                {
+                    $("#block_"+i).css('border', '');
+                    $("#block_"+i).css({
+                        border: '',
+                        padding: '4px'
+                    });
+                }
+            }
+            // add a random primary or secondary color to a block with a given id
+            function colorMe(id)
+            {
+                var p = Math.floor(Math.random() * 6) + 1;
+                if(p == 1)
+                {
+                    $("#block_"+id).css('background-color', 'blue');
+                    gameBoard[id] = 1;
+                }
+                else if(p == 2)
+                {
+                    $("#block_"+id).css('background-color', 'red');
+                    gameBoard[id] = 2;
+                }
+                else if(p == 3)
+                {
+                    $("#block_"+id).css('background-color', 'green');
+                    gameBoard[id] = 3;
+                }
+                else if(p == 4)
+                {
+                    $("#block_"+id).css('background-color', 'yellow');
+                    gameBoard[id] = 4;
+                }
+                else if(p == 5)
+                {
+                    $("#block_"+id).css('background-color', 'orange');
+                    gameBoard[id] = 5;
+                }
+                else if(p == 6)
+                {
+                    $("#block_"+id).css('background-color', 'purple');
+                    gameBoard[id] = 6;
+                }
+            }
+
+            function startTimer(duration, display) 
+            {
+                var start = Date.now(),
+                    diff,
+                    minutes,
+                    seconds;
+                function timer() {
+                    // get the number of seconds that have elapsed since 
+                    // startTimer() was called
+                    diff = duration - (((Date.now() - start) / 1000) | 0);
+
+                    // does the same job as parseInt truncates the float
+                    minutes = (diff / 60) | 0;
+                    seconds = (diff % 60) | 0;
+
+                    minutes = minutes < 10 ? "0" + minutes : minutes;
+                    seconds = seconds < 10 ? "0" + seconds : seconds;
+
+                    display.textContent = seconds; 
+
+                    if (diff <= 0) {
+                        // add one second so that the count down starts at the full duration
+                        // example 05:00 not 04:59
+                        start = Date.now() + 1000;
+                        clearInterval(timerRunning);
+                        display.textContent = 30;
+                        endGame();
+                    }
+                };
+                // we don't want to wait a full second before the timer starts
+                timer();
+                timerRunning = setInterval(timer, 1000);
+            } 
+
+            function endGame()
+            {
+                var username = prompt("Game over! Your score was: " + score + ". Please enter your name:", "username");
+                if(username != null)
+                {
+                    addScore(username);
+                }
+                location.reload();
+            }
+            // Helper function that takes a new score snapshot and adds an appropriate row to our leaderboard table.
+            function handleScoreAdded(scoreSnapshot, prevScoreName) 
+            {
+                var newScoreRow = $("<tr/>");
+                newScoreRow.append($("<td/>").append($("<em/>").text(scoreSnapshot.val().name)));
+                newScoreRow.append($("<td/>").text(scoreSnapshot.val().score));
+
+                // Store a reference to the table row so we can get it again later.
+                htmlForPath[scoreSnapshot.key()] = newScoreRow;
+
+                // Insert the new score in the appropriate place in the table.
+                if (prevScoreName === null) 
+                {
+                    $("#leaderboardTable").append(newScoreRow);
+                }
+                else 
+                {
+                    var lowerScoreRow = htmlForPath[prevScoreName];
+                    lowerScoreRow.before(newScoreRow);
+                }
+            }
+
+            // Helper function to handle a score object being removed; just removes the corresponding table row.
+            function handleScoreRemoved(scoreSnapshot) 
+            {
+                var removedScoreRow = htmlForPath[scoreSnapshot.key()];
+                removedScoreRow.remove();
+                delete htmlForPath[scoreSnapshot.key()];
+            }
+
+            // Create a view to only receive callbacks for the last LEADERBOARD_SIZE scores
+            var scoreListView = scoreListRef.limitToLast(LEADERBOARD_SIZE);          
+
+            // Add a callback to handle when a new score is added.
+            scoreListView.on('child_added', function (newScoreSnapshot, prevScoreName) {
+                handleScoreAdded(newScoreSnapshot, prevScoreName);
+            });
+
+            // Add a callback to handle when a score is removed
+            scoreListView.on('child_removed', function (oldScoreSnapshot) {
+                handleScoreRemoved(oldScoreSnapshot);
+            });
+
+            // Add a callback to handle when a score changes or moves positions.
+            var changedCallback = function (scoreSnapshot, prevScoreName) {
+                handleScoreRemoved(scoreSnapshot);
+                handleScoreAdded(scoreSnapshot, prevScoreName);
+            };
+            scoreListView.on('child_moved', changedCallback);
+            scoreListView.on('child_changed', changedCallback);
+
+            // When the user presses enter on scoreInput, add the score, and update the highest score.
+            function addScore(name)
+            {
+                var newScore = score;
+
+                if (name.length === 0)
+                    return;
+
+                var userScoreRef = scoreListRef.child(name);
+
+                // Use setWithPriority to put the name / score in Firebase, and set the priority to be the score.
+                userScoreRef.setWithPriority({ name:name, score:newScore }, newScore);
+            }
+        </script>
+        <div data-role="page" id="pageone" dataurl="/public/index.html">
+            <div data-role="main" class="ui-content">
+                <div id="info">
+                    <p id='score'>Score: 0000</p>
+                    <p id='time'>00</p>
+                </div>
+                <table id="gameTable">
+                    <tbody>
+                        <tr>
+                            <td id="block_1" class="block"></td>
+                            <td id="block_2" class="block"></td>
+                            <td id="block_3" class="block"></td>
+                            <td id="block_4" class="block"></td>
+                        </tr>
+                        <tr>
+                            <td id="block_5" class="block"></td>
+                            <td id="block_6" class="block"></td>
+                            <td id="block_7" class="block"></td>
+                            <td id="block_8" class="block"></td>
+                        </tr>
+                        <tr>
+                            <td id="block_9"  class="block"></td>
+                            <td id="block_10" class="block"></td>
+                            <td id="block_11" class="block"></td>
+                            <td id="block_12" class="block"></td>
+                        </tr>
+                        <tr>
+                            <td id="block_13" class="block"></td>
+                            <td id="block_14" class="block"></td>
+                            <td id="block_15" class="block"></td>
+                            <td id="block_16" class="block"></td>
+                        </tr>                        
+                    </tbody>
+                </table>
+                <div class="leaders">
+                    <table id="leaderboardTable">
+                        <tr>
+                            <th>Player</th>
+                            <th>Score</th>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+            <div data-role="footer" class = "footer">
+                <p>Press 3 matching colors to score points.</p>
+            </div>
+        </div> 
+    </body>
+</html>

@@ -1,0 +1,9 @@
+{
+  "firebase": "CSE264Project",
+  "public": "public",
+  "ignore": [
+    "firebase.json",
+    "**/.*",
+    "**/node_modules/**"
+  ]
+}
